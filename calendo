@@ -1,0 +1,155 @@
+#!/bin/bash -
+#
+# Obsidian Calendar seeder
+#
+# Add all relevant
+#    (YYYY-MM-DD.md   ->  wGGGG-VV.md) (01-53)
+#    (  wGGGG-VV.md   ->  mYYYY-MM.md) (01-12)
+#    (  mYYYY-MM.md   ->   qYYYY-X.md) (1-4) 
+#    (   qYYYY-X.md   ->      YYYY.md)
+# generate 'diary-todo.md' which holds links to all
+# files with unsufficient content.
+#
+#   -----------------------------------------------------------
+#   |  WARNING.                                               |
+#   |  We replace everything after the first occurence of     |
+#   |                                                         | 
+#   |    ^# Associated Diary Entries$                         |
+#   |                                                         | 
+#   |  This WILL DELETE stuff if anything is                  |
+#   |  where it shouldn't be.                                 |
+#   -----------------------------------------------------------
+
+iso_date() {
+    # taken from https://unix.stackexchange.com/a/662783
+    # input: GGGG-VV-u
+    # output: YYYY-mm
+    declare -a given
+    declare -a calib
+    IFS='-' read -a given <<<"${1}"
+    IFS='-' read -a calib <<<"$( LANG=C date -d "${given[0]}-06-01" +'%G-%V-%u' )"
+    given[1]=${given[1]#0}
+    calib[1]=${calib[1]#0}
+    declare offset=$(( 7*(${given[1]} - ${calib[1]}) + ${given[2]} - ${calib[2]} ))
+    LANG=C date -d "${given[0]}-06-01 + ${offset} days" +'m%Y-%m'
+}
+
+get_parents() {
+    # input: date specification not matching ^\./ or \.md$
+    #  meaning it is just the date
+    # output: space separated parents, without the trailing ".md"
+    #  for all but the weeks, this will be one parent, for a week it could be one or two
+    local file=$1
+    if [[ $file =~ ^w ]]; then
+        # handle week
+        # $file is of form wGGGG-VV
+        file=${file#w}
+        month_a=$(iso_date "${file}-1")
+        month_b=$(iso_date "${file}-7")
+        [[ $month_a == $month_b ]] && echo $month_a || echo $month_a $month_b
+        return 0
+    fi
+    if [[ $file =~ ^m ]]; then
+        # handle month
+        # $file is of form mYYYY-mm
+        LANG=C date -d "${file#m}-01" +'q%Y-%q'
+        return 0
+    fi
+    if [[ $file =~ ^q ]]; then
+        # handle quarter
+        # $file is of form qYYYY-q
+        # simply return the YYYY part
+        file=${file#q}
+        file=${file%-*}
+        echo $file
+        return 0
+    fi
+    # handled week, month, quarter
+    # left is day and year
+    if [[ $file =~ ^[0-9]{4}$ ]]; then
+        # years don't get a parent
+        return 1
+    fi
+    # days get the week
+    LANG=C date -d $file +'w%G-%V'
+    return 0
+}
+
+# global array and data for link structure
+declare -A links
+link_file="${HOME}/.local/share/mutables/obsidian-diary-links"
+[[ -f $link_file ]] && {
+    while read link || [[ -n $link ]]; do
+        links[$link]=1
+    done < $link_file
+}
+set_links_for() {
+    local p
+    local key
+    local file=$1
+    local parents="$(get_parents $file)"
+    if [[ $? == 0 ]]; then
+        # not a year
+        for p in $parents; do
+            # if link is already set, all parents will already be set
+            key=$file:$p
+            if [[ -z ${links[$key]} ]]; then
+                echo $key >> $link_file
+                links[$key]=1
+                set_links_for $p
+            fi
+        done
+    fi
+}
+
+# global array and data for checking if a file has the correct form
+declare -A corrected
+correct_file () {
+    [[ -n ${corrected[$1]} ]] && return 0
+    corrected[$1]=1
+    echo $1 >> $known_files
+    [[ $1 =~ ^[0-9]{4}-..-.. ]] && return 0
+    if [[ -f $1.md ]] && rg -q '^# Associated Diary Entries$' $1.md
+    then
+        # file is ok
+        :
+    else
+        cat >> $1.md << HERE
+
+# Associated Diary Entries
+%% WARNING, don not append to or touch what follows %%
+
+---
+
+HERE
+    fi
+}
+
+update_link () {
+    # just paste [[shorter]] into longer.md and ensure
+    # that both have correct form
+    local shorter=${1%:*}
+    local longer=${1#*:}
+    correct_file $shorter
+    correct_file $longer
+    echo "[[$shorter]]" >> $longer.md
+}
+
+# know we have all functions
+# calculate the links for the files in the diary structure
+while read file || [[ -n $file ]]; do
+    file=${file#./}
+    file=${file%.md}
+    set_links_for $file
+done < <( fd -e md '^.?\d{4}' )
+
+# make the files match the
+for item in "${!links[@]}"; do
+    update_link $item
+done
+
+# now that the links are updated
+# some files might link to anther file multiple times
+while read file || [[ -n $file ]]; do
+    cat $file | kak -f 'ge<a-?>^---$<ret><a-s><a-K><ret><a-_>|sort -u<ret>' | sponge $file
+done < <( { fd -e md '^[wmq]'; fd -e md '^\d{4}.md$'; } )
