@@ -20,6 +20,7 @@
 #   |  where it shouldn't be.                                 |
 #   -----------------------------------------------------------
 
+cd ~/notes/diary/
 iso_date() {
     # taken from https://unix.stackexchange.com/a/662783
     # input: GGGG-VV-u
