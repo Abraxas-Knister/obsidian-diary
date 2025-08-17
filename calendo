@@ -2,18 +2,18 @@
 #
 # Obsidian Calendar seeder
 
-cd ~/notes/diary/
+cd ~/notes/diary/ || exit
 iso_date() {
     # taken from https://unix.stackexchange.com/a/662783
     # input: GGGG-VV-u
     # output: YYYY-mm
     declare -a given
     declare -a calib
-    IFS='-' read -a given <<<"${1}"
-    IFS='-' read -a calib <<<"$( LANG=C date -d "${given[0]}-06-01" +'%G-%V-%u' )"
+    IFS='-' read -r -a given <<<"${1}"
+    IFS='-' read -r -a calib <<<"$( LANG=C date -d "${given[0]}-06-01" +'%G-%V-%u' )"
     given[1]=${given[1]#0}
     calib[1]=${calib[1]#0}
-    declare offset=$(( 7*(${given[1]} - ${calib[1]}) + ${given[2]} - ${calib[2]} ))
+    declare offset=$(( 7*(given[1] - calib[1]) + given[2] - calib[2] ))
     LANG=C date -d "${given[0]}-06-01 + ${offset} days" +'m%Y-%m'
 }
 
@@ -29,7 +29,7 @@ get_parents() {
         file=${file#w}
         month_a=$(iso_date "${file}-1")
         month_b=$(iso_date "${file}-7")
-        [[ $month_a == $month_b ]] && echo $month_a || echo $month_a $month_b
+        [[ $month_a == "$month_b" ]] && echo "$month_a" || echo "$month_a" "$month_b"
         return 0
     fi
     if [[ $file =~ ^m ]]; then
@@ -44,7 +44,7 @@ get_parents() {
         # simply return the YYYY part
         file=${file#q}
         file=${file%-*}
-        echo $file
+        echo "$file"
         return 0
     fi
     # handled week, month, quarter
@@ -54,7 +54,7 @@ get_parents() {
         return 1
     fi
     # days get the week
-    LANG=C date -d $file +'w%G-%V'
+    LANG=C date -d "$file" +'w%G-%V'
     return 0
 }
 
@@ -70,9 +70,9 @@ declare -A links
 declare -A known
 known_files="${HOME}/.local/share/mutables/obsidian-diary-index"
 [[ -f "$known_files" ]] && {
-    while read file || [[ -n "$file" ]]; do
+    while read -r file || [[ -n "$file" ]]; do
         known[$file]=1
-    done < $known_files
+    done < "$known_files"
 }
 set_links_for() {
     local p
@@ -80,17 +80,17 @@ set_links_for() {
     local file=$1
     [[ -z "${known[$file]}" ]] && {
         known[$file]=1
-        echo $file >> $known_files
+        echo "$file" >> "$known_files"
     }
-    local parents="$(get_parents $file)"
-    if [[ $? == 0 ]]; then
+    local parents
+    if parents=$(get_parents "$file"); then
         # not a year
         for p in $parents; do
             # if link is already set, all parents will already be set
             key=$file:$p
             if [[ -z ${links[$key]} ]]; then
                 links[$key]=1
-                set_links_for $p
+                set_links_for "$p"
             fi
         done
     fi
@@ -102,12 +102,11 @@ correct_file () {
     [[ -n ${corrected[$1]} ]] && return 0
     corrected[$1]=1
     [[ $1 =~ ^[0-9]{4}-..-.. ]] && return 0
-    if [[ -f $1.md ]] && rg -q '^# Associated Diary Entries$' $1.md
-    then
+    if [[ -f $1.md ]] && rg -q '^# Associated Diary Entries$' "$1.md"; then
         # file is ok
         :
     else
-        cat >> $1.md << HERE
+        cat >> "$1".md << HERE
 # Associated Diary Entries
 %% WARNING, don not append to or touch what follows %%
 
@@ -123,21 +122,21 @@ update_link () {
     # that both have correct form
     local shorter=${1%:*}
     local longer=${1#*:}
-    correct_file $shorter
-    correct_file $longer
+    correct_file "$shorter"
+    correct_file "$longer"
     changed[$longer]=1
-    echo "[[$shorter]]" >> $longer.md
+    echo "[[$shorter]]" >> "$longer.md"
 }
 
 # calculate the links for the files in the diary structure
-while read file || [[ -n $file ]]; do
+while read -r file || [[ -n $file ]]; do
     file=${file#./}
     file=${file%.md}
     # if a file is known, all its parents will exist
     # and have the correct entries
     # skip it
     [[ -n "${known[$file]}" ]] && continue
-    set_links_for $file
+    set_links_for "$file"
 done < <( fd -e md '^.?\d{4}' )
 
 # make the files match the links
@@ -150,9 +149,11 @@ done
 # or have the links in the wrong order
 #
 # use kakoune to fix it
-while read file || [[ -n $file ]]; do
+for file in $(fd '^[wmq]' ; fd '\d{4}.md'); do
+    key=${file#./}
+    key=${key%.md}
+    [[ -z "${changed[$key]}" ]] && continue
     # kak -f <keys> runs <keys>	after selecting the whole text.
-    # 
     # 'ge'
     #    goto last character (linebreak in last line)
     # '<a-?>^---$<ret>
@@ -163,27 +164,25 @@ while read file || [[ -n $file ]]; do
     #    filter the remaining text through `sort -u`
     #    which orders the links in the correct way
     #    and drops multiple entries
-    #
-    key=${file#./}
-    key=${key%.md}
-    [[ -z "${changed[$key]}" ]] && continue
-    cat $file | kak -f 'ge<a-?>^---$<ret><a-s><a-K><ret><a-_>|sort -u<ret>' | sponge $file
-done < <( { fd -e md '^[wmq]'; fd -e md '^\d{4}.md$'; } )
+    kak -n -q -f 'ge<a-?>^---$<ret><a-s><a-K><ret><a-_>|sort -u<ret>' "$file"
+done
 
 # copy the diary to the backup directory
-rsync -a ${HOME}/notes/diary/ ${HOME}/notes-bak/diary
+rsync -a "${HOME}/notes/diary/" "${HOME}/notes-bak/diary"
 sync
-cd ~/notes-bak/diary/
+cd ~/notes-bak/diary/ || exit
 
 # prepare an incremental diff
 # to show to the user
 git add -N .
 diff_file="${HOME}/notes/diary_diff.md"
-echo -n "Latest backup: " > $diff_file
-git log -1 --pretty=%s >> $diff_file
-echo '```diff' >> $diff_file
-git diff >> $diff_file
-echo '```' >> $diff_file
+{
+    echo -n "Latest backup: "
+    git log -1 --pretty=%s
+    echo '```diff'
+    git diff
+    echo '```'
+} > "$diff_file"
 
 # increment the repository to the newest state
 git add .
