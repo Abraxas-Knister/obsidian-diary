@@ -97,7 +97,6 @@ set_links_for() {
     local key
     local file=$1
     [[ -z "${known[$file]}" ]] && {
-        echo remembering $file
         known[$file]=1
         echo $file >> $known_files
     }
