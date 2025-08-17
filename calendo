@@ -1,24 +1,6 @@
 #!/bin/bash -
 #
 # Obsidian Calendar seeder
-#
-# Add all relevant
-#    (YYYY-MM-DD.md   ->  wGGGG-VV.md) (01-53)
-#    (  wGGGG-VV.md   ->  mYYYY-MM.md) (01-12)
-#    (  mYYYY-MM.md   ->   qYYYY-X.md) (1-4) 
-#    (   qYYYY-X.md   ->      YYYY.md)
-# generate 'diary-todo.md' which holds links to all
-# files with unsufficient content.
-#
-#   -----------------------------------------------------------
-#   |  WARNING.                                               |
-#   |  We replace everything after the first occurence of     |
-#   |                                                         | 
-#   |    ^# Associated Diary Entries$                         |
-#   |                                                         | 
-#   |  This WILL DELETE stuff if anything is                  |
-#   |  where it shouldn't be.                                 |
-#   -----------------------------------------------------------
 
 cd ~/notes/diary/
 iso_date() {
