@@ -10,7 +10,7 @@ shows an incremental diff to the last backup in obsidian upon closing.
 ## Missing files and links
 For any daily entry present, a file with the naming scheme `wGGGG-VV`
 will be created, for the ISO week that contains this day (cf.
-[iso week](https://en.wiki.org/wiki/ISO_week_date)). This
+[iso week](https://en.wikipedia.org/wiki/ISO_week_date)). This
 file will end with a section
 
 ```md
