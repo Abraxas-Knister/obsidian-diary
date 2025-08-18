@@ -14,7 +14,7 @@ Just add the script to the `PATH`. I recommend setting up a command in obsidian 
 
 ## Missing files and links
 
-A day is considered to be contained in its [ISO week](https://en.wikipedia.org/wiki/ISO_week_date)).
+A day is considered to be contained in its [ISO week](https://en.wikipedia.org/wiki/ISO_week_date).
 If a diary entry for that week is not present in the diary it is considered
 missing and will be added by the script. Whether just created or already existing, it will
 also be modified to contain links to the existing daily entries that are contained in that week.
@@ -33,18 +33,18 @@ The naming scheme is (cf. `man date`)
 - **quarters**: qYYYY-q
 - **years**: YYYY
 
-**Example: ** If you add eg a daily entry for Wed. Jan 01 2025, the following happens
+**Example:** If you add eg a daily entry for Wed Jan 01 2025, the following happens
 
 | **name of added file** | **link added to that file** | **reason**                                                            |
 | :--------------------: | :-------------------------: | :-------------------------------------------------------------------- |
 | 2025-01-01             | -                           | the day we added                                                      |
-| w2025-01               | `[[2025-01-01]]`            | Thu of the week 2025-01-01 is in 2025, thus this is week 01 of 2025   |
-| m2024-12               | `[[w2025-01]]`              | ISO week w2025-01 starts in Dec 2024                                  |
-| m2025-01               | `[[w2025-01]]`              | w2025-01, which contains 2025-01-01 is in Jan 2025                    |
-| q2024-4                | `[[m2024-12]]`              | Quarter 4 of 2024 contains Oct, Nov, Dec                              |
-| q2025-1                | `[[m2025-01]]`              | Quarter 1 of 2025 contains Jan, Feb, Mar                              |
-| 2024                   | `[[q2024-4]]`               | obvs.                                                                 |
-| 2025                   | `[[q2025-1]]`               |                                                                       |
+| w2025-01               | 2025-01-01                  | Thu of the week 2025-01-01 is in 2025, thus this is week 01 of 2025   |
+| m2024-12               | w2025-01                    | ISO week w2025-01 starts in Dec 2024                                  |
+| m2025-01               | w2025-01                    | ISO week w2025-01 ends in Jan 2025                                    |
+| q2024-4                | m2024-12                    | quarter 4 of 2024 contains Oct, Nov, Dec                              |
+| q2025-1                | m2025-01                    | quarter 1 of 2025 contains Jan, Feb, Mar                              |
+| 2024                   | q2024-4                     | obvs.                                                                 |
+| 2025                   | q2025-1                     |                                                                       |
 
 The links are gathered at the end of the file in a section that looks like this:
 ```md
