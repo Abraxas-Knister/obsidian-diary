@@ -108,7 +108,6 @@ correct_file () {
     else
         cat >> "$1".md << HERE
 # Associated Diary Entries
-%% WARNING, don not append to or touch what follows %%
 
 ---
 
