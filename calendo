@@ -167,7 +167,7 @@ for file in $(fd '^[wmq]' ; fd '\d{4}.md'); do
 done
 
 # copy the diary to the backup directory
-rsync -a "${HOME}/notes/diary/" "${HOME}/notes-bak/diary"
+rsync -a --delete --exclude='.git/' "${HOME}/notes/diary/" "${HOME}/notes-bak/diary"
 sync
 cd ~/notes-bak/diary/ || exit
 
